@@ -1,0 +1,10 @@
+resources:
+  pipelines:
+    bronze_pipeline:
+      name: sport_landing_to_bronze
+      catalog: sport_lakehouse
+      target: bronze
+      serverless: true
+      libraries:
+        - file:
+            path: ../src/bronze/landing_to_bronze.py

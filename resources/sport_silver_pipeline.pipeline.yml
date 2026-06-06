@@ -1,0 +1,46 @@
+resources:
+  pipelines:
+    sport_silver_pipeline:
+      name: sport_silver_pipeline
+      catalog: sport_lakehouse
+      target: silver
+      serverless: true
+      libraries:
+        - file:
+            path: ../src/pipeline/utils.py
+        - file:
+            path: ../src/pipeline/configs.py
+        # Root tables (ingen FK)
+        - file:
+            path: ../src/pipeline/addresses.py
+        - file:
+            path: ../src/pipeline/sport_types.py
+        # Avheng av addresses
+        - file:
+            path: ../src/pipeline/members.py
+        - file:
+            path: ../src/pipeline/clubs.py
+        # Avheng av clubs + sport_types
+        - file:
+            path: ../src/pipeline/club_sports.py
+        # Avheng av members + clubs
+        - file:
+            path: ../src/pipeline/affiliations.py
+        - file:
+            path: ../src/pipeline/memberships.py
+        # Avheng av members + addresses + clubs + sport_types
+        - file:
+            path: ../src/pipeline/competitions.py
+        # Avheng av memberships + members
+        - file:
+            path: ../src/pipeline/membership_payments.py
+        # Avheng av competitions + members + clubs
+        - file:
+            path: ../src/pipeline/participation.py
+        - file:
+            path: ../src/pipeline/competition_waitlist.py
+        # Avheng av participation
+        - file:
+            path: ../src/pipeline/results.py
+        # Aktiveres etter daily notebooks:
+        # club_weather_daily, club_weather_monitoring, weather_stations
