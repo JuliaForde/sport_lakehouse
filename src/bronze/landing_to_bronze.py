@@ -110,8 +110,20 @@ def results():
 
 
 # -----------------------------------------------------------------------
-# Desse aktiveres etter at daily notebooks er køyrt:
-# - club_weather_daily        → 18_club_weather_daily
-# - club_weather_monitoring   → 18_club_weather_daily
-# - weather_stations          → weather_stations_daily
+# Weather tables — seeded by bootstrap, continued by the daily notebooks
+# (18_club_weather_daily / weather_stations_daily).
 # -----------------------------------------------------------------------
+
+@dp.table(name="club_weather_monitoring", comment="Bronze: which clubs are weather-monitored + their station. PK: club_id.")
+def club_weather_monitoring():
+    return dedup_by_bk(add_ingest_cols(read_landing("club_weather_monitoring")), ["club_id"])
+
+
+@dp.table(name="weather_stations", comment="Bronze: weather station dimension. PK: station_id.")
+def weather_stations():
+    return dedup_by_bk(add_ingest_cols(read_landing("weather_stations")), ["station_id"])
+
+
+@dp.table(name="club_weather_daily", comment="Bronze: daily weather observations per club. Composite PK: (weather_date, club_id).")
+def club_weather_daily():
+    return dedup_by_bk(add_ingest_cols(read_landing("club_weather_daily")), ["weather_date", "club_id"])
