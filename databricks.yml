@@ -2,7 +2,8 @@ bundle:
   name: sport_lakehouse
 
 include:
-  - resources/*.yml
+  - resources/**/*.yml
+  
 
 targets:
   dev:

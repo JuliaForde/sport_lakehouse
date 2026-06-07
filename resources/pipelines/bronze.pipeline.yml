@@ -7,4 +7,4 @@ resources:
       serverless: true
       libraries:
         - file:
-            path: ../src/bronze/landing_to_bronze.py
+            path: ../../src/bronze/landing_to_bronze.py
