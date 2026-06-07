@@ -6,6 +6,9 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 9 * * ?"
         timezone_id: Europe/Oslo
+      parameters:
+        - name: run_date
+          default: "" 
         
       tasks:
         - task_key: addresses

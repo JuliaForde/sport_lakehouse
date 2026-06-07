@@ -13,7 +13,6 @@
 # Create/override the widgets that 00_utils actually reads
 from datetime import date
 
-dbutils.widgets.removeAll()
 dbutils.widgets.text("run_date", date.today().isoformat())
 dbutils.widgets.text("volume", "medium")  # low|medium|high
 dbutils.widgets.text("volume_factor", "1.0")  # scales volume_mult
