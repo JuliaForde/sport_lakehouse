@@ -187,7 +187,7 @@ else:
     df_out_final = df_final.select(*sel_cols_ordered)
 
     # Materialize values so no nondeterministic exprs remain for the merge
-    df_out_final = df_out_final.cache()
+    df_out_final = df_out_final
     _ = df_out_final.count()   # force evaluation
     
     df_final_results = df_out_final  # Store at notebook level for Cell 6

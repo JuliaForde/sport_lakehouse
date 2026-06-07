@@ -29,16 +29,16 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{TARGET_CATALOG}`.`{TARGET_SCHEMA}`")
 SEED = 42
 random.seed(SEED)
 
-N_MEMBERS      = 124_567
-N_CLUBS        = 220
-N_COMPETITIONS = 920
+N_MEMBERS      = 174_000
+N_CLUBS        = 870
+N_COMPETITIONS = 1_290
 
 # COMMAND ----------
 
 from pyspark.sql.types import (
     StructType, StructField,
     LongType, IntegerType, StringType, BooleanType,
-    DateType, TimestampType
+    DateType, TimestampType, DoubleType
 )
 
 aff_schema = StructType([
@@ -93,7 +93,8 @@ results_schema = StructType([
 if RESET_SCHEMA:
     for t in [
         "membership_payments","memberships","competition_waitlist","results","participation",
-        "competitions","affiliations","members","club_sports","clubs","sport_types","addresses"
+        "competitions","affiliations","members","club_sports","clubs","sport_types","addresses",
+        "club_weather_daily","club_weather_monitoring","weather_stations"
     ]:
         spark.sql(f"DROP TABLE IF EXISTS {tbl(t)}")
 
@@ -305,7 +306,7 @@ municipalities = [
 ]
 
 # more addresses than before, but still manageable
-N_ADDRESSES = 28_000
+N_ADDRESSES = 60_000
 
 def jitter(base, scale=0.06):
     return base + random.uniform(-scale, scale)
@@ -354,12 +355,15 @@ sport_types = [
   (12, "ice hockey", False, "winter", "team"),
   (13, "ultra running", True, "summer", "individual"),
   (14, "taekwondo", False, "all_year", "individual"),
-  (15, "soccer", True, "summer", "team"),
+  (15, "gymnastics", False, "all_year", "individual"),
   (16, "tennis", False, "all_year", "individual"),
   (17, "squash", False, "all_year", "individual"),
   (18, "sailing", True, "summer", "team"),
   (19, "rugby", True, "summer", "team"),
   (20, "horse back riding", False, "all_year", "individual"),
+  (21, "golf", True, "summer", "individual"),
+  (22, "floorball", False, "all_year", "team"),
+  (23, "judo", False, "all_year", "individual"),
 ]
 
 # Popularity weight is used across the simulation to scale how many clubs/competitions/registrations
@@ -379,7 +383,10 @@ SPORT_POPULARITY_WEIGHT = {
     "ice hockey": 0.6,
     "ultra running": 0.5,
     "taekwondo": 0.4,
-    "soccer": 3.2,
+    "gymnastics": 2.5,
+    "golf": 1.5,
+    "floorball": 1.2,
+    "judo": 0.6,
     "tennis": 0.6,
     "squash": 0.3,
     "sailing": 0.4,
@@ -416,6 +423,22 @@ def rand_ts(d, rnd=random) -> datetime:
 # ---- Clubs (40% more) ----
 club_types = ["grassroots","school","elite","company"]
 
+# Richer Norwegian club naming + extra attributes
+CLUB_PREFIXES = ["Fjell","Strand","Skog","Fjord","Dal","Berg","Ås","Vang","Gran","Bjørke",
+                 "Lunde","Sol","Nord","Sør","Vest","Viking","Ørn","Elg","Bjørn","Ulv","Hav",
+                 "Storm","Frigg","Tor","Odin","Nordlys","Polar","Kvikk","Sterk","Frem"]
+CLUB_SUFFIXES = ["IL","SK","IF","FK","HK","BK","Turn","Ski","Fotball","Håndball","Sportsklubb","Idrettslag"]
+CLUB_DIVISIONS = ["elite","1. divisjon","2. divisjon","3. divisjon","breddeidrett"]
+
+def make_club_name(rnd_, muni):
+    suffix = rnd_.choice(CLUB_SUFFIXES)
+    pat = rnd_.choice(["prefix", "muni", "suffix_first"])
+    if pat == "prefix":
+        return f"{rnd_.choice(CLUB_PREFIXES)} {suffix}"
+    if pat == "muni":
+        return f"{muni} {suffix}"
+    return f"{suffix} {rnd_.choice(CLUB_PREFIXES)}"
+
 clubs = []
 for cid in range(1, N_CLUBS+1):
     # pick a municipality (weighted a little towards bigger cities)
@@ -423,19 +446,150 @@ for cid in range(1, N_CLUBS+1):
     addr_id = random.choice(addr_ids_by_muni[muni])
     ctype = random.choices(club_types, weights=[0.72,0.08,0.12,0.08])[0]
     created_at = date.today() - timedelta(days=random.randint(365, 365*15))
+    club_name = make_club_name(random, muni)
+    slug = club_name.lower().replace(' ', '').replace('ø','o').replace('å','a').replace('æ','ae')
     clubs.append({
         "club_id": cid,
-        "club_name": f"{muni} {random.choice(['IL','SK','IF','FK','HK','BK','SV'])} {cid}",
+        "club_name": club_name,
         "address_id": int(addr_id),
         "club_type": ctype,
-        "website": f"https://{muni.lower().replace('ø','o').replace('å','a').replace('æ','ae')}-club{cid}.no",
-        "created_at": created_at
+        "website": f"https://{slug}-{cid}.no",
+        "created_at": created_at,
+        "founded_year": max(1900, created_at.year - random.randint(0, 80)),
+        "division": random.choices(CLUB_DIVISIONS, weights=[0.06,0.10,0.18,0.26,0.40])[0],
+        "is_active": (random.random() < 0.96),
     })
 
 clubs_df = spark.createDataFrame(clubs)
 save_table(clubs_df, "clubs")
 
 club_geo = {r["club_id"]: addr_geo[r["address_id"]] for r in clubs_df.select("club_id","address_id").collect()}
+
+# -------------------------------------------------------------------------
+# Weather: 70 monitored clubs/stations installed at VARYING times, plus
+# historical daily measurements that start within 7 days of each station's
+# install date and run up to the bootstrap cutoff. Ongoing measurements then
+# continue from the daily notebooks (18_club_weather_daily / weather_stations_daily).
+# -------------------------------------------------------------------------
+import math
+
+WEATHER_STATION_COUNT = 100
+WEATHER_CUTOFF = date.today() - timedelta(days=21)   # same as BOOTSTRAP_DATE
+wrnd = random.Random(20260517)
+
+# lat/lon + geo per address (single pass), and club -> address lookup
+_addr_ll = {
+    r["address_id"]: (r["latitude"], r["longitude"], r["municipality_name"], r["county_name"])
+    for r in addresses_df.select("address_id","latitude","longitude","municipality_name","county_name").collect()
+}
+_club_addr = {int(c["club_id"]): int(c["address_id"]) for c in clubs}
+_all_club_ids = sorted(_club_addr.keys())
+_monitored_ids = set(wrnd.sample(_all_club_ids, min(WEATHER_STATION_COUNT, len(_all_club_ids))))
+
+# Weather model — same shape as 18_club_weather_daily, parameterised by date
+def _wx_temp(lat, doy, r):
+    seasonal = 10.0 * math.sin((doy - 200) / 365.0 * 2 * math.pi)
+    lat_adj  = -0.25 * max(0.0, (lat - 58.0))
+    return 6.0 + seasonal + lat_adj + r.gauss(0, 2.0)
+
+def _wx_precip(month, r):
+    p_rain = 0.45 if month in (10,11,12,1,2,3) else (0.28 if month in (6,7,8) else 0.35)
+    if r.random() > p_rain:
+        return 0.0
+    amt = max(0.0, r.gammavariate(1.5, 4.0))
+    if r.random() < 0.03:
+        amt *= r.uniform(2.0, 4.0)
+    return float(min(amt, 80.0))
+
+def _wx_wind(r):
+    w = abs(r.gauss(4.0, 2.5))
+    if r.random() < 0.02:
+        w *= r.uniform(2.0, 3.0)
+    return float(min(w, 28.0))
+
+def _wx_condition(precip, snow):
+    if precip == 0 and snow == 0: return "clear"
+    if snow > 0: return "snow"
+    if precip > 20: return "heavy_rain"
+    return "rain"
+
+_now_ts = datetime.utcnow()
+monitoring_rows, station_rows, weather_rows = [], [], []
+
+for cid in _all_club_ids:
+    is_mon = cid in _monitored_ids
+    station_id = f"ST-{cid:08d}" if is_mon else None
+    installed = (WEATHER_CUTOFF - timedelta(days=wrnd.randint(60, 900))) if is_mon else None
+
+    monitoring_rows.append({
+        "club_id": cid, "is_monitored": is_mon, "station_id": station_id,
+        "installed_date": installed, "decommissioned_date": None, "created_at": _now_ts,
+    })
+    if not is_mon:
+        continue
+
+    station_rows.append({
+        "station_id": station_id, "club_id": cid, "installed_date": installed,
+        "decommissioned_date": None, "is_active": True,
+    })
+
+    # measurements start within 7 days of install, run to cutoff
+    lat, lon, muni, county = _addr_ll[_club_addr[cid]]
+    lat_v = float(lat) if lat is not None else 60.0
+    d = installed + timedelta(days=wrnd.randint(0, 7))
+    while d <= WEATHER_CUTOFF:
+        r = random.Random(cid * 100000 + d.toordinal())
+        t = _wx_temp(lat_v, int(d.strftime("%j")), r)
+        p = _wx_precip(d.month, r)
+        w = _wx_wind(r)
+        snow = p * r.uniform(0.4, 1.2) if (t <= 1.0 and p > 0) else 0.0
+        weather_rows.append({
+            "weather_date": d, "club_id": cid, "station_id": station_id,
+            "avg_temp_c": float(t), "precip_mm": float(p), "wind_mps": float(w),
+            "snow_cm": float(snow), "condition": _wx_condition(p, snow),
+            "observed_at": _now_ts, "municipality_name": muni, "county_name": county,
+        })
+        d += timedelta(days=1)
+
+monitoring_schema = StructType([
+    StructField("club_id",             LongType(),      False),
+    StructField("is_monitored",        BooleanType(),   False),
+    StructField("station_id",          StringType(),    True),
+    StructField("installed_date",      DateType(),      True),
+    StructField("decommissioned_date", DateType(),      True),
+    StructField("created_at",          TimestampType(), True),
+])
+stations_schema = StructType([
+    StructField("station_id",          StringType(),    False),
+    StructField("club_id",             LongType(),      False),
+    StructField("installed_date",      DateType(),      True),
+    StructField("decommissioned_date", DateType(),      True),
+    StructField("is_active",           BooleanType(),   False),
+])
+weather_daily_schema = StructType([
+    StructField("weather_date",      DateType(),      False),
+    StructField("club_id",           LongType(),      False),
+    StructField("station_id",        StringType(),    True),
+    StructField("avg_temp_c",        DoubleType(),    True),
+    StructField("precip_mm",         DoubleType(),    True),
+    StructField("wind_mps",          DoubleType(),    True),
+    StructField("snow_cm",           DoubleType(),    True),
+    StructField("condition",         StringType(),    True),
+    StructField("observed_at",       TimestampType(), True),
+    StructField("municipality_name", StringType(),    True),
+    StructField("county_name",       StringType(),    True),
+])
+
+club_weather_monitoring_df = spark.createDataFrame(monitoring_rows, schema=monitoring_schema)
+save_table(club_weather_monitoring_df, "club_weather_monitoring")
+
+weather_stations_df = spark.createDataFrame(station_rows, schema=stations_schema)
+save_table(weather_stations_df, "weather_stations")
+
+club_weather_daily_df = spark.createDataFrame(weather_rows, schema=weather_daily_schema)
+save_table(club_weather_daily_df, "club_weather_daily")
+
+print(f"Weather: {len(station_rows)} stations, {len(weather_rows)} historical measurements up to {WEATHER_CUTOFF}.")
 
 # COMMAND ----------
 
@@ -453,7 +607,10 @@ sport_name_by_id = {r["sport_type_id"]: r["sport_type_name"]
 SPORT_POPULARITY = {
     "cross-country skiing": 3.0,
     "football": 3.0,
-    "soccer": 3.0,
+    "gymnastics": 2.5,
+    "golf": 1.5,
+    "floorball": 1.2,
+    "judo": 0.6,
     "handball": 2.6,
     "alpine skiing": 2.2,
     "swimming": 1.5,
@@ -703,13 +860,13 @@ for mid in range(1, N_MEMBERS+1):
     muni = pick_member_muni()
     addr_id = rnd.choice(addr_ids_by_muni[muni])
     muni_name, county_name = addr_geo[addr_id]
-    cutoff = date.today() - timedelta(days=14)
+    cutoff = date.today() - timedelta(days=21)
     created_at = members_start + timedelta(days=rnd.randint(0, (cutoff-members_start).days))
 
     age = sample_age(rnd)
     bdate = birth_date_from(age, created_at, rnd)
 
-    gender = rnd.choices(["female","male","non binary"], weights=[0.495,0.495,0.010])[0]
+    gender = rnd.choices(["female","male","non binary"], weights=[0.41,0.58,0.01])[0]
     name_gender = gender if gender in ("female","male") else rnd.choice(["female","male"])
 
     nationality = pick_nationality(rnd)
@@ -900,7 +1057,10 @@ SPORT_POPULARITY = {
 
     # Most popular
     "football":             3.2,
-    "soccer":               3.2,  # treat as alias if you keep both names
+    "gymnastics":           2.5,
+    "golf":                 1.5,
+    "floorball":            1.2,
+    "judo":                 0.6,
     "handball":             2.2,
 
     # Medium
@@ -959,7 +1119,7 @@ sport_meta_rows = [r.asDict() for r in sport_meta]
 levels = ["Local","Regional","National"]
 
 # ~1 year more history than before: start ~4 years ago, range ~4.5 years (includes ~6 months future)
-CUTOFF_DATE = date.today() - timedelta(days=14)
+CUTOFF_DATE = date.today() - timedelta(days=21)
 start_base = CUTOFF_DATE.replace(month=1, day=1) - timedelta(days=365*4)
 range_days = (CUTOFF_DATE - start_base).days
 
@@ -985,6 +1145,24 @@ def competition_capacity(level: str, rnd, popular: bool):
     if popular:
         base = int(base * rnd.uniform(0.65, 0.90))
     return max(20, base)
+
+# Richer competition naming + venue + economics
+COMP_FORMATS = ["Open","Cup","Mesterskap","Turnering","Invitational","Grand Prix","Classic","Challenge"]
+VENUE_TYPES  = ["Idrettshall","Stadion","Arena","Skisenter","Svømmehall","Friidrettsbane","Flerbrukshall","Ishall"]
+FEE_BY_LEVEL   = {"Local": (100, 300),  "Regional": (200, 600),   "National": (400, 1200)}
+PRIZE_BY_LEVEL = {"Local": (0, 5000),   "Regional": (5000, 30000),"National": (30000, 250000)}
+
+def make_comp_name(rnd_, muni, county, sport_name, year, level):
+    sport = sport_name.title()
+    if level == "National":
+        return rnd_.choice([f"NM {sport} {year}",
+                            f"Norgesmesterskapet i {sport_name} {year}",
+                            f"{sport} Grand Prix {year}"])
+    if level == "Regional":
+        return rnd_.choice([f"{county} {sport} {rnd_.choice(COMP_FORMATS)} {year}",
+                            f"{county}mesterskapet i {sport_name} {year}"])
+    return rnd_.choice([f"{muni} {rnd_.choice(COMP_FORMATS)} {year}",
+                        f"{muni} {sport} {rnd_.choice(COMP_FORMATS)} {year}"])
 
 competitions = []
 comp_popular = {}
@@ -1029,13 +1207,15 @@ for cid in range(1, N_COMPETITIONS+1):
     else:
         status = "cancelled" if rnd.random() < 0.01 else "scheduled"
 
+    _fee_lo, _fee_hi = FEE_BY_LEVEL[level]
+    _pz_lo, _pz_hi = PRIZE_BY_LEVEL[level]
     competitions.append({
         "competition_id": cid,
-        "name": f"{host_muni} {srow['sport_type_name'].title()} {start.year} #{cid}",
+        "name": make_comp_name(rnd, host_muni, host_county, srow["sport_type_name"], start.year, level),
         "sport_type_id": sport_id,
         "host_club_id": host_club_id,
         "address_id": addr_id,
-        "venue": rnd.choice(["Idrettshall","Stadion","Friidrettsbane","Skisenter","Svømmehall","Arena"]),
+        "venue": f"{host_muni} {rnd.choice(VENUE_TYPES)}",
         "level": level,
         "start_date": start,
         "end_date": end,
@@ -1043,7 +1223,10 @@ for cid in range(1, N_COMPETITIONS+1):
         "created_at": rand_ts(created_at, rnd),
         "registration_deadline": reg_deadline,
         "capacity": int(cap),
-        "updated_at": rand_ts(created_at, rnd)
+        "updated_at": rand_ts(created_at, rnd),
+        "entry_fee_nok": int(rnd.randint(_fee_lo, _fee_hi)),
+        "prize_pool_nok": int(rnd.randint(_pz_lo, _pz_hi)),
+        "is_outdoor": bool(srow["is_outdoor"]),
     })
 
 competitions_df = spark.createDataFrame(competitions)
@@ -1258,9 +1441,10 @@ spark.sql(f"SHOW TABLES IN `{TARGET_CATALOG}`.`{TARGET_SCHEMA}`").show(50, trunc
 # COMMAND ----------
 
 # ---- Export all tables to landing volume as parquet files ----
-# Bootstrap date: use today so Auto Loader picks up as initial load
-from datetime import date
-BOOTSTRAP_DATE = date.today().isoformat()
+# Bootstrap lands on the CUTOFF date (3 weeks ago), i.e. BEFORE the first daily
+# run (cutoff+1), so the daily backfill never overwrites the bootstrap partition.
+from datetime import date, timedelta
+BOOTSTRAP_DATE = (date.today() - timedelta(days=21)).isoformat()
 LANDING_ROOT   = "/Volumes/sport_lakehouse/landing/sports"
 
 TABLES_TO_EXPORT = [
@@ -1276,6 +1460,9 @@ TABLES_TO_EXPORT = [
     ("participation",       participation_df),
     ("competition_waitlist",waitlist_df),
     ("results",             results_df),
+    ("club_weather_monitoring", club_weather_monitoring_df),
+    ("weather_stations",        weather_stations_df),
+    ("club_weather_daily",      club_weather_daily_df),
 ]
 
 print(f"\nExporting {len(TABLES_TO_EXPORT)} tables to {LANDING_ROOT}/<table>/{BOOTSTRAP_DATE}/")
@@ -1285,6 +1472,6 @@ for table_name, df in TABLES_TO_EXPORT:
     df.write.mode("overwrite").parquet(path)
     print(f"  ✅ {table_name}: {df.count()} rows → {path}")
 
-# club_weather_monitoring and weather_stations are not in the initial export
-# They are generated by 18_club_weather_daily and weather_stations_daily
+# Weather tables (monitoring, stations, daily measurements) are now seeded here too;
+# the daily notebooks continue measurements from cutoff+1 onward.
 print("\n✅ Bootstrap export to landing volume complete.")

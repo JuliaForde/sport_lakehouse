@@ -79,6 +79,9 @@ CLUBS = {
         "address_id": "CLB_address_Id",
         "website":    "CLB_website_url_Desc",
         "created_at": "CLB_created_Dts",
+        "founded_year": "CLB_founded_year_No",
+        "division":     "CLB_division_Code",
+        "is_active":    "CLB_is_active_Flag",
     },
 }
 
@@ -248,6 +251,9 @@ COMPETITIONS = {
         "registration_deadline": "COMP_reg_deadline_Dt",
         "created_at":            "COMP_created_Dt",
         "updated_at":            "COMP_updated_Dts",
+        "entry_fee_nok":         "COMP_entry_fee_No",
+        "prize_pool_nok":        "COMP_prize_pool_No",
+        "is_outdoor":            "COMP_is_outdoor_Flag",
     },
 }
 

@@ -49,7 +49,7 @@ if n_new == 0:
     print("No new members today (n_new=0).")
 else:
     # Address lookups
-    addr = spark.table(tbl("addresses")).select("address_id","municipality_name","county_name").cache()
+    addr = spark.table(tbl("addresses")).select("address_id","municipality_name","county_name")
     addr_muni = [r["municipality_name"] for r in addr.select("municipality_name").distinct().collect()]
     addr_ids_by_muni = {r["municipality_name"]: r["ids"]
                         for r in addr.groupBy("municipality_name").agg(F.collect_list("address_id").alias("ids")).collect()}
@@ -169,7 +169,7 @@ else:
         age = sample_age(r)
         bdate = birth_date_from(age, created_at, r)
 
-        gender = r.choices(["female","male","non binary"], weights=[0.495,0.495,0.010])[0]
+        gender = r.choices(["female","male","non binary"], weights=[0.41,0.58,0.01])[0]
         name_gender = gender if gender in ("female","male") else r.choice(["female","male"])
 
         nationality = pick_nationality(r)
@@ -317,5 +317,3 @@ else:
     for df in dfs_to_export[1:]:
         df_export = df_export.unionByName(df)
     export_to_landing(TABLE, df_export)
-
-    print(f"Exported combined file to: {final_file}")

@@ -83,7 +83,7 @@ else:
                         *([c for c in ["postal_place"] if c in target_cols]))
                 .where(F.col("municipality_name").isNotNull())
                 .where(F.col("county_name").isNotNull())
-               ).cache()
+               )
 
         muni_stats = (base
             .groupBy("municipality_name","county_name")

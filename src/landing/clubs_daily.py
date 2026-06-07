@@ -136,7 +136,7 @@ for i in range(proposed_n):
     new_clubs.append({
         "club_id": club_id,
         "club_name": club_name,
-        "club_type": rnd.choice(["multi-sport", "single-sport"]),
+        "club_type": rnd.choices(["grassroots","school","elite","company"], weights=[0.72,0.08,0.12,0.08])[0],
         "website": f"https://{club_name.lower().replace(' ', '')}.no",
         "street_address": f"{rnd.choice(['Idrettsveien', 'Stadionveien', 'Arenaallé', 'Hallveien'])} {rnd.randint(1,200)}",
         "postal_code": f"{rnd.randint(0,9999):04d}",
@@ -225,6 +225,10 @@ for i, club in enumerate(new_clubs):
         "club_type": club.get("club_type"),
         "website": club.get("website"),
         "created_at": RUN_DATE,  # if you have this column in clubs
+        "founded_year": RUN_DATE.year - rnd.randint(0, 3),
+        "division": rnd.choices(["elite","1. divisjon","2. divisjon","3. divisjon","breddeidrett"],
+                                weights=[0.04,0.08,0.15,0.25,0.48])[0],
+        "is_active": True,
     })
 
 df_new_clubs = spark.createDataFrame(clubs_rows)

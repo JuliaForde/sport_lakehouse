@@ -83,7 +83,7 @@ if n_new == 0:
     dbutils.notebook.exit("No new weather stations today.")
 
 # Cache the DataFrame BEFORE merge to preserve for export
-df_new_stations = df_new.cache()
+df_new_stations = df_new
 _ = df_new_stations.count()  # Force materialization
 
 # COMMAND ----------

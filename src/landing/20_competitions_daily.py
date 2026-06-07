@@ -129,7 +129,22 @@ else:
         return max(20, base)
 
     levels = ["Local","Regional","National"]
-    venues = ["Idrettshall","Stadion","Friidrettsbane","Skisenter","Svømmehall","Arena"]
+    VENUE_TYPES  = ["Idrettshall","Stadion","Arena","Skisenter","Svømmehall","Friidrettsbane","Flerbrukshall","Ishall"]
+    COMP_FORMATS = ["Open","Cup","Mesterskap","Turnering","Invitational","Grand Prix","Classic","Challenge"]
+    FEE_BY_LEVEL   = {"Local": (100, 300),  "Regional": (200, 600),   "National": (400, 1200)}
+    PRIZE_BY_LEVEL = {"Local": (0, 5000),   "Regional": (5000, 30000),"National": (30000, 250000)}
+
+    def make_comp_name(rnd_, muni, county, sport_name, year, level):
+        sport = sport_name.title()
+        if level == "National":
+            return rnd_.choice([f"NM {sport} {year}",
+                                f"Norgesmesterskapet i {sport_name} {year}",
+                                f"{sport} Grand Prix {year}"])
+        if level == "Regional":
+            return rnd_.choice([f"{county} {sport} {rnd_.choice(COMP_FORMATS)} {year}",
+                                f"{county}mesterskapet i {sport_name} {year}"])
+        return rnd_.choice([f"{muni} {rnd_.choice(COMP_FORMATS)} {year}",
+                            f"{muni} {sport} {rnd_.choice(COMP_FORMATS)} {year}"])
 
     rows=[]
     for i in range(n_new):
@@ -162,13 +177,15 @@ else:
 
         status = "cancelled" if rr.random() < 0.01 else "scheduled"
 
+        _fee_lo, _fee_hi = FEE_BY_LEVEL[level]
+        _pz_lo, _pz_hi = PRIZE_BY_LEVEL[level]
         rows.append({
             "competition_id": int(comp_id),
-            "name": f"{host_muni} {srow['sport_type_name'].title()} {start.year} #{comp_id}",
+            "name": make_comp_name(rr, host_muni, host_county, srow["sport_type_name"], start.year, level),
             "sport_type_id": sport_id,
             "host_club_id": host_club_id,
             "address_id": address_id,
-            "venue": rr.choice(venues),
+            "venue": f"{host_muni} {rr.choice(VENUE_TYPES)}",
             "level": level,
             "start_date": start,
             "end_date": end,
@@ -176,7 +193,10 @@ else:
             "created_at": created_at,
             "registration_deadline": reg_deadline,
             "capacity": int(cap),
-            "updated_at": datetime.combine(RUN_DATE, datetime.min.time()) + timedelta(hours=rr.randint(7,20), minutes=rr.randint(0,59))
+            "updated_at": datetime.combine(RUN_DATE, datetime.min.time()) + timedelta(hours=rr.randint(7,20), minutes=rr.randint(0,59)),
+            "entry_fee_nok": int(rr.randint(_fee_lo, _fee_hi)),
+            "prize_pool_nok": int(rr.randint(_pz_lo, _pz_hi)),
+            "is_outdoor": bool(srow["is_outdoor"]),
         })
 
     df_new = spark.createDataFrame(rows)
