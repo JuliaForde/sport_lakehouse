@@ -18,7 +18,7 @@ targets:
 
   # Shared dev — only CI/CD deploys here (on merge to main). Always matches main.
   dev:
-    mode: development
+    mode: production
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
       root_path: /Workspace/Dev/${bundle.name}
