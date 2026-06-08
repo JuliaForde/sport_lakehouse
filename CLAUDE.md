@@ -40,11 +40,11 @@ sport_lakehouse/
 ## Quick Start
 
 ```bash
-databricks bundle deploy                                    # deploy to dev
-databricks bundle run landing_daily                         # run daily job
-databricks bundle run landing_daily --params run_date=2025-06-01
-databricks bundle validate                                  # validate config
-databricks bundle sync                                      # sync without deploy
+databricks bundle deploy --profile knowit-sandbox                                    # deploy to dev
+databricks bundle run landing_daily --profile knowit-sandbox                         # run daily job
+databricks bundle run landing_daily --profile knowit-sandbox --params run_date=2025-06-01
+databricks bundle validate --profile knowit-sandbox                                  # validate config
+databricks bundle sync --profile knowit-sandbox                                      # sync without deploy
 ```
 
 ## Critical Gotchas

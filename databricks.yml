@@ -11,11 +11,9 @@ targets:
     default: true
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
-      profile: knowit-sandbox
 
   dev_live:
     mode: production
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
-      profile: knowit-sandbox
       root_path: /Workspace/Dev_live/${bundle.name}
