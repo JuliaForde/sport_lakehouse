@@ -47,6 +47,7 @@ jobs:
           #   DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
           #   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle validate
 
   # ── Push to main: deploy to dev ──────────────────────────────────────────────
@@ -64,12 +65,14 @@ jobs:
         working-directory: .
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle validate
 
       - name: Deploy to dev
         working-directory: .
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle deploy --target dev
 
   # ── Manual: deploy to dev_live (requires GitHub Environment approval) ─────────
@@ -88,10 +91,12 @@ jobs:
         working-directory: .
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle validate
 
       - name: Deploy to dev_live
         working-directory: .
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle deploy --target dev_live
