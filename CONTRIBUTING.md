@@ -1,5 +1,29 @@
 # Contributing
 
+## Starting a work session
+
+```bash
+# 1. Open VS Code in the project folder
+cd /Users/juliaforde/Documents/databricks-projects/knowit-sandbox/sport_lakehouse
+code .
+
+# 2. In the VS Code terminal — get latest and create a feature branch
+git checkout main
+git pull origin main
+git checkout -b feature/what-you-are-doing
+
+# 3. Open a second terminal panel and start Claude
+claude
+
+# 4. In Claude — load project context
+/sport-lakehouse-context
+
+# 5. If Databricks CLI needs authentication (first time or token expired)
+databricks auth login --profile knowit-sandbox
+```
+
+---
+
 ## How changes get deployed
 
 ```
