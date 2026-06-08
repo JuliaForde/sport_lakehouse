@@ -1,5 +1,13 @@
 resources:
   jobs:
+    bootstrap:
+      name: Generate_Sports_Landing
+      description: One-time job to seed the full base dataset and export to landing volume. Run manually only.
+      tasks:
+        - task_key: bootstrap
+          notebook_task:
+            notebook_path: ../../src/landing/00_bootstrap_generate_sports_dataset.py
+
     landing_daily:
       name: landing_daily
       description: Daily landing job

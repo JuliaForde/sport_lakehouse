@@ -34,7 +34,7 @@ comps = (spark.table(tbl("competitions")).alias("c")
           .collect())
 
 if not comps:
-    print("No upcoming competitions in the next 14 days; nothing to register.")
+    dbutils.notebook.exit("No upcoming competitions in the next 14 days; nothing to register.")
 else:
     members = spark.table(tbl("members")).select("member_id","birth_date","address_id")
     addresses = spark.table(tbl("addresses")).select("address_id","municipality_name","county_name")
@@ -145,7 +145,7 @@ else:
             promote_updates.append((int(w["waitlist_id"]), int(p_next)))
 
     if promote_rows:
-        df_prom = spark.createDataFrame(promote_rows)
+        df_prom = spark.createDataFrame(promote_rows, schema=spark.table(tbl("participation")).schema)
         df_promoted_participation = df_prom  # Store at notebook level for Cell 8
         merge_into("participation", df_prom, ["participation_id"])
         # update waitlist rows to promoted

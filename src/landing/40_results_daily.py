@@ -25,6 +25,21 @@ TABLE = "results"
 r = random.Random(seed_for(TABLE))
 df_new_results = None  # Initialize at notebook level
 
+# Explicit schema — corrected_at is always None (and score/time_seconds can be
+# all-None per batch), so we must NOT let Spark infer types from the dicts.
+from pyspark.sql.types import StructType, StructField, LongType, IntegerType, StringType, BooleanType, TimestampType
+RESULTS_SCHEMA = StructType([
+    StructField("result_id",        LongType(),      False),
+    StructField("participation_id", LongType(),      False),
+    StructField("position",         IntegerType(),   True),
+    StructField("score",            IntegerType(),   True),
+    StructField("time_seconds",     IntegerType(),   True),
+    StructField("notes",            StringType(),    True),
+    StructField("is_official",      BooleanType(),   True),
+    StructField("recorded_at",      TimestampType(), True),
+    StructField("corrected_at",     TimestampType(), True),
+])
+
 # Competitions ended in last 3 days and completed
 ended_from = RUN_DATE - timedelta(days=3)
 ended_to = RUN_DATE - timedelta(days=1)
@@ -103,7 +118,7 @@ else:
             existing.add(int(pid))
 
     if rows:
-        df_new = spark.createDataFrame(rows)
+        df_new = spark.createDataFrame(rows, schema=RESULTS_SCHEMA)
         df_new_results = df_new  # Store at notebook level for Cell 6
         merge_into("results", df_new, ["result_id"])
         print(f"Inserted results: {len(rows)}")
@@ -166,25 +181,20 @@ else:
         .withColumn("recorded_at", F.current_timestamp())
     )
 
-    # Build a safe select list: prefer original columns, but replace score/time with adjusted values
-    sel_cols = []
-    for c in df_final.columns:
-        if c == "score":
-            # if original 'score' exists, use the adjusted value as 'score'
-            sel_cols.append(F.col("score_adj").alias("score"))
-        elif c == "time_seconds":
-            sel_cols.append(F.col("time_seconds_adj").alias("time_seconds"))
-        else:
-            sel_cols.append(F.col(c))
+    # Build the output column list by NAME (avoid c._jc — unsupported on serverless).
+    # Output = the original result columns, with score/time_seconds replaced by the
+    # adjusted values, result_id/participation_id first. (Intermediate *_adj cols dropped.)
+    orig_cols = list(df_base.columns)
+    ordered_names = ["result_id", "participation_id"] + [c for c in orig_cols if c not in ("result_id", "participation_id")]
 
-    # Ensure result_id is first (not required but keeps predictable ordering)
-    if "result_id" in df_final.columns:
-        # re-order: result_id, participation_id, rest...
-        sel_cols_ordered = [F.col("result_id"), F.col("participation_id")] + [c for c in sel_cols if c._jc.toString() not in ("result_id","participation_id")]
-    else:
-        sel_cols_ordered = sel_cols
+    def _out_col(name):
+        if name == "score":
+            return F.col("score_adj").alias("score")
+        if name == "time_seconds":
+            return F.col("time_seconds_adj").alias("time_seconds")
+        return F.col(name)
 
-    df_out_final = df_final.select(*sel_cols_ordered)
+    df_out_final = df_final.select(*[_out_col(n) for n in ordered_names])
 
     # Materialize values so no nondeterministic exprs remain for the merge
     df_out_final = df_out_final

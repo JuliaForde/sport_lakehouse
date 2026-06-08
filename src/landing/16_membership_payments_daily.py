@@ -74,7 +74,7 @@ for m in to_pay.collect():
     })
 
 if rows:
-    df_new = spark.createDataFrame(rows)
+    df_new = spark.createDataFrame(rows, schema=spark.table(tbl("membership_payments")).schema)
     df_new_payments = df_new  # Store at notebook level for Cell 8
     merge_into("membership_payments", df_new, ["payment_id"])
     display(df_new.limit(20))
@@ -149,7 +149,7 @@ for p in failed_rows:
     })
 
 if retry_rows:
-    df_retry = spark.createDataFrame(retry_rows)
+    df_retry = spark.createDataFrame(retry_rows, schema=spark.table(tbl("membership_payments")).schema)
     df_retry_payments = df_retry  # Store at notebook level for Cell 8
     merge_into("membership_payments", df_retry, ["payment_id"])
     print(f"Retries created: {df_retry.count()}")
