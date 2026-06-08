@@ -32,13 +32,25 @@ Branch naming:
 
 ### While developing
 
-Test manually against dev from your laptop:
+Each developer has a personal sandbox target in `databricks.yml` — deploy there to test
+your changes without affecting the shared `dev` environment.
+
+Add your own target by copying the `dev_julia` block in `databricks.yml` and updating
+the target name and `root_path` email to your own.
 
 ```bash
-databricks bundle deploy --profile knowit-sandbox          # deploy your branch changes
-databricks bundle run landing_daily --profile knowit-sandbox  # run a job
-databricks bundle validate --profile knowit-sandbox        # validate config
+# Deploy to YOUR personal sandbox (replace dev_julia with your target name)
+databricks bundle deploy --target dev_julia --profile knowit-sandbox
+
+# Run a job in your sandbox
+databricks bundle run landing_daily --target dev_julia --profile knowit-sandbox
+
+# Validate config
+databricks bundle validate --profile knowit-sandbox
 ```
+
+The shared `dev` target is only deployed to by CI/CD on merge to main — don't deploy
+there manually.
 
 Commit often — small, logical chunks:
 

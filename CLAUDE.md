@@ -40,9 +40,10 @@ sport_lakehouse/
 ## Quick Start
 
 ```bash
-databricks bundle deploy --profile knowit-sandbox                                    # deploy to dev
-databricks bundle run landing_daily --profile knowit-sandbox                         # run daily job
-databricks bundle run landing_daily --profile knowit-sandbox --params run_date=2025-06-01
+databricks bundle deploy --target dev_julia --profile knowit-sandbox                 # deploy to personal sandbox
+databricks bundle deploy --profile knowit-sandbox                                    # deploy to shared dev (CI/CD does this on merge)
+databricks bundle run landing_daily --target dev_julia --profile knowit-sandbox      # run daily job
+databricks bundle run landing_daily --target dev_julia --profile knowit-sandbox --params run_date=2025-06-01
 databricks bundle validate --profile knowit-sandbox                                  # validate config
 databricks bundle sync --profile knowit-sandbox                                      # sync without deploy
 ```
