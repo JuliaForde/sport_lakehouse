@@ -5,6 +5,7 @@ resources:
       catalog: sport_lakehouse
       target: silver
       serverless: true
+      allow_duplicate_names: true
       libraries:
         - file:
             path: ../../src/pipeline/utils.py
