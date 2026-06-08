@@ -1,47 +1,56 @@
-# CLAUDE.md
+# Claude Code Project Context: sport_lakehouse
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+A reference lakehouse on Databricks built on fake Norwegian sports data.
+Designed as a best-practices demo for workshops and client engagements —
+covering DABS deployment, Spark Declarative Pipelines, and medallion architecture.
 
-## Never
-- Never run `git commit`, `git push`, or `databricks bundle deploy` without explicit confirmation from me
-- Never use unqualified table names — always `catalog.schema.table` (three-part fully qualified)
-- Never hardcode warehouse IDs, catalog names, or workspace URLs — always use variables or widgets
-- Never run `bundle deploy --target dev_live` or any prod-equivalent target without explicit confirmation
-- Never modify bronze tables directly — bronze is append-only, transformations happen in silver
+## Technology Stack
 
-## Current state
-- Silver pipeline: addresses, clubs, members, sport_types, club_sports, affiliations, memberships, competitions, membership_payments, participation, competition_waitlist, results (SDP/Lakeflow)
-- Gold: metric views — manual deploy via notebook (DDL wraps YAML, executed via `spark.sql`)
-- Genie: "Norwegian Sports" space — exported as `.genie.json` artifact, promoted via SDK export/import script
-- No prod environment yet — everything runs in dev/sandbox (`knowit-sandbox` profile)
-- No CI/CD yet — deployments are manual via CLI or VS Code extension
+- **Deployment**: Databricks Asset Bundles (DABS) — `knowit-sandbox` profile
+- **Pipelines**: Spark Declarative Pipelines (SDP / Lakeflow)
+- **CI/CD**: GitHub Actions (planned — not yet wired)
+- **IDE**: VS Code + Claude Code
 
-## Direction (where this is heading)
-- We need to make the Bronze and Silver layer, more solid, currently not tested well especially lookups, keys and Scd2 
-- CI/CD will use GitHub Actions
-- We want to build the guold layer of the solution also using  SDP(spark declarative pipelines)
--We want to add metric views as a base for out semantic layer that can be used as source of truth for dashboards & genie spaces 
-- we want to build geni spaces + dashaboard along with best practices for deploying them
+## Skills
 
-## Databricks CLI commands
+**Start here**: `sport-lakehouse-context` — full project context, layer logic, standards
 
-All commands run from `sport_lakehouse/` using the `knowit-sandbox` profile.
+| Category | Skills |
+|----------|--------|
+| **Pipelines** | `databricks-spark-declarative-pipelines` |
+| **Bundles** | `databricks-bundles` |
+| **Genie** | `databricks-genie` |
+| **Metric views** | `databricks-metric-views` |
+| **Jobs** | `databricks-jobs` |
+
+## Project Structure
+
+```
+sport_lakehouse/
+├── databricks.yml              # Bundle root config
+├── resources/
+│   ├── jobs/                   # Job definitions (YAML)
+│   └── pipelines/              # Pipeline definitions (YAML)
+└── src/
+    ├── landing/                # Daily ingest notebooks
+    ├── silver/                 # SDP pipeline notebooks
+    └── gold/                   # (planned)
+```
+
+## Quick Start
 
 ```bash
-# Deploy bundle to dev (default target)
-databricks bundle deploy
-
-# Deploy to dev_live (production-mode target)
-databricks bundle deploy --target dev_live
-
-# Run the daily landing job manually
-databricks bundle run landing_daily
-
-# Run with a specific date
+databricks bundle deploy                                    # deploy to dev
+databricks bundle run landing_daily                         # run daily job
 databricks bundle run landing_daily --params run_date=2025-06-01
+databricks bundle validate                                  # validate config
+databricks bundle sync                                      # sync without deploy
+```
 
-# Validate bundle config without deploying
-databricks bundle validate
+## Critical Gotchas
 
-# Sync local files to workspace (without full deploy)
-databricks bundle sync
+- **Confirmation required**: never run `git commit`, `git push`, or `databricks bundle deploy` without explicit approval
+- **Three-part table names**: always `catalog.schema.table` — never unqualified
+- **Bronze is append-only**: never modify bronze directly — transformations in silver
+- **No hardcoding**: warehouse IDs, catalog names, workspace URLs use variables/widgets
+- **dev_live needs confirmation**: never deploy to prod-equivalent target without approval

@@ -1,0 +1,97 @@
+name: Databricks Bundle CI/CD
+
+# Triggers:
+# - Pull request to main → validate bundle only (no deploy)
+# - Push to main (PR merged) → auto deploy to dev
+# - Manual trigger → deploy to dev_live (requires GitHub Environment approval)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target'
+        required: true
+        default: 'dev_live'
+        type: choice
+        options:
+          - dev_live
+
+# Prevent concurrent deploys — if a new push arrives while deploying, cancel the old run
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── PR: validate only ────────────────────────────────────────────────────────
+  validate:
+    name: Validate bundle
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        # TODO: pin to a specific version once stable, e.g. databricks/setup-cli@v0.x.x
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        working-directory: .
+        env:
+          # AUTH: currently using Personal Access Token (PAT)
+          # TODO: replace with Service Principal when available:
+          #   DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          #   DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+  # ── Push to main: deploy to dev ──────────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        working-directory: .
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+      - name: Deploy to dev
+        working-directory: .
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target dev
+
+  # ── Manual: deploy to dev_live (requires GitHub Environment approval) ─────────
+  deploy-dev-live:
+    name: Deploy to dev_live
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment: dev_live   # Requires approval — configure in repo Settings → Environments
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        working-directory: .
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+      - name: Deploy to dev_live
+        working-directory: .
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target dev_live
