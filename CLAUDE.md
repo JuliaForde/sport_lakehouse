@@ -48,6 +48,15 @@ databricks bundle validate --profile knowit-sandbox                             
 databricks bundle sync --profile knowit-sandbox                                      # sync without deploy
 ```
 
+## Session Start
+
+At the start of every session, run `git branch --show-current`. If the current branch is `main`:
+- Give a one-time soft reminder: "Heads up — you're on `main`. Remember to pull and branch before making any changes."
+- Do not repeat the reminder unless the developer asks you to make a code change
+- If they ask for a code change while still on `main`, remind them to branch first before proceeding
+
+If already on a feature branch, just note the branch name and continue.
+
 ## Critical Gotchas
 
 - **Confirmation required**: never run `git commit`, `git push`, or `databricks bundle deploy` without explicit approval

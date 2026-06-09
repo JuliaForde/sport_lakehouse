@@ -1,5 +1,5 @@
 ---
-name: project-context
+name: sport-lakehouse-context
 description: Full context for the sport_lakehouse project — intent, tech stack, current state, layer logic, and standards. Load this at the start of every session.
 tags: [context, onboarding, architecture, medallion, databricks]
 ---
