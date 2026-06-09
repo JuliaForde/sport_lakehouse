@@ -1,7 +1,7 @@
 name: Databricks Bundle CI/CD
 
 # Triggers:
-# - Push to feature/** → validate + auto-deploy to personal sandbox (dev_julia, dev_gil, etc.)
+# - Push to feature/**, fix/**, chore/** → validate + auto-deploy to personal sandbox (dev_julia, dev_gil, etc.)
 # - Pull request to main → validate only (no deploy)
 # - Push to main (PR merged) → auto-deploy to shared dev
 # - Manual trigger → deploy to dev_live
@@ -16,6 +16,8 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
+      - 'chore/**'
   workflow_dispatch:
     inputs:
       target:
@@ -51,11 +53,11 @@ jobs:
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
         run: databricks bundle validate
 
-  # ── Push to feature branch: validate + deploy to personal sandbox ─────────────
+  # ── Push to feature/fix/chore branch: validate + deploy to personal sandbox ────
   deploy-personal:
     name: Deploy to personal sandbox
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/feature/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/'))
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
