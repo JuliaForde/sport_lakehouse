@@ -18,6 +18,7 @@ targets:
       catalog: dev_julia
     workspace:
       host: https://dbc-ef88803f-e606.cloud.databricks.com
+      root_path: /Workspace/Users/julfordee@gmail.com/Databricks_FreeEdition/${bundle.name}/${bundle.target}
 
   live:
     mode: production
@@ -25,4 +26,4 @@ targets:
       catalog: sport_lakehouse
     workspace:
       host: https://dbc-ef88803f-e606.cloud.databricks.com
-      root_path: /Workspace/Users/julfordee@gmail.com/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace/Shared/Databricks_FreeEdition/${bundle.name}/${bundle.target}
