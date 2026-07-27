@@ -1,0 +1,31 @@
+bundle:
+  name: sport_lakehouse
+  
+
+include:
+  - resources/**/*.yml
+  
+
+targets:
+
+  # Personal sandbox — each developer deploys here to test their own changes.
+  # Add a target per developer: copy this block, change the target name and root_path email.
+  dev_julia:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+
+  # Shared dev — only CI/CD deploys here (on merge to main). Always matches main.
+  dev:
+    mode: production
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+      root_path: /Workspace/Dev/${bundle.name}
+
+  # Production-equivalent — manual trigger only, requires explicit approval.
+  dev_live:
+    mode: production
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+      root_path: /Workspace/Dev_live/${bundle.name}

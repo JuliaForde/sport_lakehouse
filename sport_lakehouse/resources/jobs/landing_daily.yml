@@ -1,0 +1,64 @@
+resources:
+  jobs:
+    bootstrap:
+      name: Generate_Sports_Landing
+      description: One-time job to seed the full base dataset and export to landing volume. Run manually only.
+      tasks:
+        - task_key: bootstrap
+          notebook_task:
+            notebook_path: ../../src/landing/00_bootstrap_generate_sports_dataset.py
+
+    landing_daily:
+      name: landing_daily
+      description: Daily landing job
+      schedule:
+        quartz_cron_expression: "0 0 9 * * ?"
+        timezone_id: Europe/Oslo
+      parameters:
+        - name: run_date
+          default: "" 
+        
+      tasks:
+        - task_key: addresses
+          notebook_task:
+            notebook_path: ../../src/landing/06_addresses_daily.py
+        - task_key: clubs
+          depends_on: [{ task_key: addresses }]
+          notebook_task:
+            notebook_path: ../../src/landing/clubs_daily.py
+        - task_key: members
+          depends_on: [{ task_key: clubs }]
+          notebook_task:
+            notebook_path: ../../src/landing/10_members_daily.py
+        - task_key: affiliations
+          depends_on: [{ task_key: members }]
+          notebook_task:
+            notebook_path: ../../src/landing/12_affiliations_daily.py
+        - task_key: memberships
+          depends_on: [{ task_key: affiliations }]
+          notebook_task:
+            notebook_path: ../../src/landing/14_memberships_daily.py
+        - task_key: payments
+          depends_on: [{ task_key: memberships }]
+          notebook_task:
+            notebook_path: ../../src/landing/16_membership_payments_daily.py
+        - task_key: competitions
+          depends_on: [{ task_key: payments }]
+          notebook_task:
+            notebook_path: ../../src/landing/20_competitions_daily.py
+        - task_key: participation_waitlist
+          depends_on: [{ task_key: competitions }]
+          notebook_task:
+            notebook_path: ../../src/landing/30_participation_waitlist_daily.py
+        - task_key: results
+          depends_on: [{ task_key: participation_waitlist }]
+          notebook_task:
+            notebook_path: ../../src/landing/40_results_daily.py
+        - task_key: club_weather
+          depends_on: [{ task_key: results }]
+          notebook_task:
+            notebook_path: ../../src/landing/18_club_weather_daily.py
+        - task_key: weather_stations
+          depends_on: [{ task_key: club_weather }]
+          notebook_task:
+            notebook_path: ../../src/landing/weather_stations_daily.py

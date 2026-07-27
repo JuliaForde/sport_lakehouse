@@ -1,0 +1,28 @@
+bundle:
+  name: fjordarcade
+
+variables:
+  catalog:
+    description: Unity Catalog catalog name for this target
+    default: dev_julia
+
+include:
+  - resources/**/*.yml
+
+targets:
+
+  dev_julia:
+    mode: development
+    default: true
+    variables:
+      catalog: dev_julia
+    workspace:
+      host: https://dbc-ef88803f-e606.cloud.databricks.com
+
+  live:
+    mode: production
+    variables:
+      catalog: fjordarcade
+    workspace:
+      host: https://dbc-ef88803f-e606.cloud.databricks.com
+      root_path: /Workspace/Users/julfordee@gmail.com/.bundle/${bundle.name}/${bundle.target}
