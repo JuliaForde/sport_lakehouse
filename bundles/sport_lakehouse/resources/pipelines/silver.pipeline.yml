@@ -2,7 +2,7 @@ resources:
   pipelines:
     sport_silver_pipeline:
       name: sport_silver_pipeline
-      catalog: sport_lakehouse
+      catalog: ${var.catalog}
       target: silver
       serverless: true
       allow_duplicate_names: true

@@ -25,7 +25,7 @@ jobs:
     if: github.event_name == 'pull_request'
     defaults:
       run:
-        working-directory: sport_lakehouse
+        working-directory: bundles/sport_lakehouse
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
@@ -42,7 +42,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     defaults:
       run:
-        working-directory: sport_lakehouse
+        working-directory: bundles/sport_lakehouse
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
