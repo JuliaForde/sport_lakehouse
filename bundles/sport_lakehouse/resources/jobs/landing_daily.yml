@@ -10,9 +10,9 @@ resources:
 
     landing_daily:
       name: landing_daily
-      description: Daily landing job
+      description: Daily landing job — runs overnight at 02:00 Oslo
       schedule:
-        quartz_cron_expression: "0 0 9 * * ?"
+        quartz_cron_expression: "0 0 2 * * ?"
         timezone_id: Europe/Oslo
       parameters:
         - name: run_date
@@ -62,3 +62,14 @@ resources:
           depends_on: [{ task_key: club_weather }]
           notebook_task:
             notebook_path: ../../src/landing/weather_stations_daily.py
+
+    bronze_daily:
+      name: bronze_daily
+      description: Daily bronze ingest — runs at 07:00 Oslo after overnight landing
+      schedule:
+        quartz_cron_expression: "0 0 7 * * ?"
+        timezone_id: Europe/Oslo
+      tasks:
+        - task_key: bronze_ingest
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.bronze_pipeline.id}
