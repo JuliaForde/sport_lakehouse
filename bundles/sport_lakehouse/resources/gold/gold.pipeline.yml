@@ -1,0 +1,43 @@
+resources:
+  pipelines:
+    sport_gold_pipeline:
+      name: sport_gold_pipeline
+      catalog: ${var.catalog}
+      target: gold
+      serverless: true
+      allow_duplicate_names: true
+      configuration:
+        catalog: ${var.catalog}
+      libraries:
+        # Root tables (no FKs)
+        - file:
+            path: ../../src/gold/addresses.py
+        - file:
+            path: ../../src/gold/sport_types.py
+        # Depend on addresses
+        - file:
+            path: ../../src/gold/members.py
+        - file:
+            path: ../../src/gold/clubs.py
+        # Depend on clubs + sport_types
+        - file:
+            path: ../../src/gold/club_sports.py
+        # Depend on members + clubs
+        - file:
+            path: ../../src/gold/affiliations.py
+        - file:
+            path: ../../src/gold/memberships.py
+        # Depend on members + addresses + clubs + sport_types
+        - file:
+            path: ../../src/gold/competitions.py
+        # Depend on memberships + members
+        - file:
+            path: ../../src/gold/membership_payments.py
+        # Depend on competitions + members + clubs
+        - file:
+            path: ../../src/gold/participation.py
+        - file:
+            path: ../../src/gold/competition_waitlist.py
+        # Depend on participation
+        - file:
+            path: ../../src/gold/results.py
