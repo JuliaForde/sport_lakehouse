@@ -1,7 +1,7 @@
 ADDRESSES = {
     "prefix": "ADR",
     "business_key": ["address_id"],
-    "fk_lookups": [],
+    "fk_rks": [],
     "column_mapping": {
         "address_id":        "ADR_Address_Id",
         "country":           "ADR_Country_Code",
@@ -17,7 +17,7 @@ ADDRESSES = {
 SPORT_TYPES = {
     "prefix": "SPTP",
     "business_key": ["sport_type_id"],
-    "fk_lookups": [],
+    "fk_rks": [],
     "column_mapping": {
         "sport_type_id":     "SPTP_SportType_Id",
         "sport_type_name":   "SPTP_SportType_Name",
@@ -31,15 +31,8 @@ SPORT_TYPES = {
 MEMBERS = {
     "prefix": "MEM",
     "business_key": ["member_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "MEM_Address_Id",
-            "lookup_table":   "sport_lakehouse.silver.addresses",
-            "lookup_bk_col":  "ADR_Address_Id",
-            "lookup_rk_col":  "ADR_Rk",
-            "target_fk_col":  "MEM_ADR_Rk",
-            "event_time_col": "_ingest_ts",
-        }
+    "fk_rks": [
+        {"source_col": "MEM_Address_Id", "target_col": "MEM_ADR_Rk"},
     ],
     "column_mapping": {
         "member_id":            "MEM_Member_Id",
@@ -62,15 +55,8 @@ MEMBERS = {
 CLUBS = {
     "prefix": "CLB",
     "business_key": ["club_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "CLB_Address_Id",
-            "lookup_table":   "sport_lakehouse.silver.addresses",
-            "lookup_bk_col":  "ADR_Address_Id",
-            "lookup_rk_col":  "ADR_Rk",
-            "target_fk_col":  "CLB_ADR_Rk",
-            "event_time_col": "_ingest_ts",
-        }
+    "fk_rks": [
+        {"source_col": "CLB_Address_Id", "target_col": "CLB_ADR_Rk"},
     ],
     "column_mapping": {
         "club_id":      "CLB_Club_Id",
@@ -88,23 +74,9 @@ CLUBS = {
 CLUB_SPORTS = {
     "prefix": "CLSP",
     "business_key": ["club_id", "sport_type_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "CLSP_Club_Id",
-            "lookup_table":   "sport_lakehouse.silver.clubs",
-            "lookup_bk_col":  "CLB_Club_Id",
-            "lookup_rk_col":  "CLB_Rk",
-            "target_fk_col":  "CLSP_CLB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "CLSP_SportType_Id",
-            "lookup_table":   "sport_lakehouse.silver.sport_types",
-            "lookup_bk_col":  "SPTP_SportType_Id",
-            "lookup_rk_col":  "SPTP_Rk",
-            "target_fk_col":  "CLSP_SPTP_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "CLSP_Club_Id",     "target_col": "CLSP_CLB_Rk"},
+        {"source_col": "CLSP_SportType_Id", "target_col": "CLSP_SPTP_Rk"},
     ],
     "column_mapping": {
         "club_id":       "CLSP_Club_Id",
@@ -115,23 +87,9 @@ CLUB_SPORTS = {
 AFFILIATIONS = {
     "prefix": "AFF",
     "business_key": ["affiliation_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "AFF_Member_Id",
-            "lookup_table":   "sport_lakehouse.silver.members",
-            "lookup_bk_col":  "MEM_Member_Id",
-            "lookup_rk_col":  "MEM_Rk",
-            "target_fk_col":  "AFF_MEM_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "AFF_Club_Id",
-            "lookup_table":   "sport_lakehouse.silver.clubs",
-            "lookup_bk_col":  "CLB_Club_Id",
-            "lookup_rk_col":  "CLB_Rk",
-            "target_fk_col":  "AFF_CLB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "AFF_Member_Id", "target_col": "AFF_MEM_Rk"},
+        {"source_col": "AFF_Club_Id",   "target_col": "AFF_CLB_Rk"},
     ],
     "column_mapping": {
         "affiliation_id": "AFF_Affiliation_Id",
@@ -148,15 +106,8 @@ AFFILIATIONS = {
 MEMBERSHIPS = {
     "prefix": "MEMB",
     "business_key": ["membership_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "MEMB_Member_Id",
-            "lookup_table":   "sport_lakehouse.silver.members",
-            "lookup_bk_col":  "MEM_Member_Id",
-            "lookup_rk_col":  "MEM_Rk",
-            "target_fk_col":  "MEMB_MEM_Rk",
-            "event_time_col": "_ingest_ts",
-        }
+    "fk_rks": [
+        {"source_col": "MEMB_Member_Id", "target_col": "MEMB_MEM_Rk"},
     ],
     "column_mapping": {
         "membership_id":   "MEMB_Membership_Id",
@@ -174,23 +125,9 @@ MEMBERSHIPS = {
 MEMBERSHIP_PAYMENTS = {
     "prefix": "MEPA",
     "business_key": ["payment_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "MEPA_Member_Id",
-            "lookup_table":   "sport_lakehouse.silver.members",
-            "lookup_bk_col":  "MEM_Member_Id",
-            "lookup_rk_col":  "MEM_Rk",
-            "target_fk_col":  "MEPA_MEM_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "MEPA_Membership_Id",
-            "lookup_table":   "sport_lakehouse.silver.memberships",
-            "lookup_bk_col":  "MEMB_Membership_Id",
-            "lookup_rk_col":  "MEMB_Rk",
-            "target_fk_col":  "MEPA_MEMB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "MEPA_Member_Id",     "target_col": "MEPA_MEM_Rk"},
+        {"source_col": "MEPA_Membership_Id", "target_col": "MEPA_MEMB_Rk"},
     ],
     "column_mapping": {
         "payment_id":    "MEPA_Payment_Id",
@@ -210,31 +147,10 @@ MEMBERSHIP_PAYMENTS = {
 COMPETITIONS = {
     "prefix": "COMP",
     "business_key": ["competition_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "COMP_Address_Id",
-            "lookup_table":   "sport_lakehouse.silver.addresses",
-            "lookup_bk_col":  "ADR_Address_Id",
-            "lookup_rk_col":  "ADR_Rk",
-            "target_fk_col":  "COMP_ADR_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "COMP_HostClub_Id",
-            "lookup_table":   "sport_lakehouse.silver.clubs",
-            "lookup_bk_col":  "CLB_Club_Id",
-            "lookup_rk_col":  "CLB_Rk",
-            "target_fk_col":  "COMP_CLB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "COMP_SportType_Id",
-            "lookup_table":   "sport_lakehouse.silver.sport_types",
-            "lookup_bk_col":  "SPTP_SportType_Id",
-            "lookup_rk_col":  "SPTP_Rk",
-            "target_fk_col":  "COMP_SPTP_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "COMP_Address_Id",   "target_col": "COMP_ADR_Rk"},
+        {"source_col": "COMP_HostClub_Id",  "target_col": "COMP_CLB_Rk"},
+        {"source_col": "COMP_SportType_Id", "target_col": "COMP_SPTP_Rk"},
     ],
     "column_mapping": {
         "competition_id":        "COMP_Competition_Id",
@@ -260,31 +176,11 @@ COMPETITIONS = {
 COMPETITION_WAITLIST = {
     "prefix": "COWL",
     "business_key": ["waitlist_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "COWL_Competition_Id",
-            "lookup_table":   "sport_lakehouse.silver.competitions",
-            "lookup_bk_col":  "COMP_Competition_Id",
-            "lookup_rk_col":  "COMP_Rk",
-            "target_fk_col":  "COWL_COMP_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "COWL_Member_Id",
-            "lookup_table":   "sport_lakehouse.silver.members",
-            "lookup_bk_col":  "MEM_Member_Id",
-            "lookup_rk_col":  "MEM_Rk",
-            "target_fk_col":  "COWL_MEM_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "COWL_Club_Id",
-            "lookup_table":   "sport_lakehouse.silver.clubs",
-            "lookup_bk_col":  "CLB_Club_Id",
-            "lookup_rk_col":  "CLB_Rk",
-            "target_fk_col":  "COWL_CLB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "COWL_Competition_Id",        "target_col": "COWL_COMP_Rk"},
+        {"source_col": "COWL_Member_Id",             "target_col": "COWL_MEM_Rk"},
+        {"source_col": "COWL_Club_Id",               "target_col": "COWL_CLB_Rk"},
+        {"source_col": "COWL_PromotedParticipation_Id", "target_col": "COWL_PART_Rk"},
     ],
     "column_mapping": {
         "waitlist_id":               "COWL_Waitlist_Id",
@@ -301,31 +197,10 @@ COMPETITION_WAITLIST = {
 PARTICIPATION = {
     "prefix": "PART",
     "business_key": ["participation_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "PART_Competition_Id",
-            "lookup_table":   "sport_lakehouse.silver.competitions",
-            "lookup_bk_col":  "COMP_Competition_Id",
-            "lookup_rk_col":  "COMP_Rk",
-            "target_fk_col":  "PART_COMP_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "PART_Member_Id",
-            "lookup_table":   "sport_lakehouse.silver.members",
-            "lookup_bk_col":  "MEM_Member_Id",
-            "lookup_rk_col":  "MEM_Rk",
-            "target_fk_col":  "PART_MEM_Rk",
-            "event_time_col": "_ingest_ts",
-        },
-        {
-            "source_col":     "PART_Club_Id",
-            "lookup_table":   "sport_lakehouse.silver.clubs",
-            "lookup_bk_col":  "CLB_Club_Id",
-            "lookup_rk_col":  "CLB_Rk",
-            "target_fk_col":  "PART_CLB_Rk",
-            "event_time_col": "_ingest_ts",
-        },
+    "fk_rks": [
+        {"source_col": "PART_Competition_Id", "target_col": "PART_COMP_Rk"},
+        {"source_col": "PART_Member_Id",      "target_col": "PART_MEM_Rk"},
+        {"source_col": "PART_Club_Id",        "target_col": "PART_CLB_Rk"},
     ],
     "column_mapping": {
         "participation_id":  "PART_Participation_Id",
@@ -343,15 +218,8 @@ PARTICIPATION = {
 RESULTS = {
     "prefix": "RES",
     "business_key": ["result_id"],
-    "fk_lookups": [
-        {
-            "source_col":     "RES_Participation_Id",
-            "lookup_table":   "sport_lakehouse.silver.participation",
-            "lookup_bk_col":  "PART_Participation_Id",
-            "lookup_rk_col":  "PART_Rk",
-            "target_fk_col":  "RES_PART_Rk",
-            "event_time_col": "_ingest_ts",
-        }
+    "fk_rks": [
+        {"source_col": "RES_Participation_Id", "target_col": "RES_PART_Rk"},
     ],
     "column_mapping": {
         "result_id":        "RES_Result_Id",
@@ -365,8 +233,3 @@ RESULTS = {
         "corrected_at":     "RES_CorrectedAt_Ts",
     },
 }
-
-# -----------------------------------------------------------------------
-# Aktiveres etter at daily notebooks er køyrt:
-# CLUB_WEATHER_DAILY, CLUB_WEATHER_MONITORING, WEATHER_STATIONS
-# -----------------------------------------------------------------------
