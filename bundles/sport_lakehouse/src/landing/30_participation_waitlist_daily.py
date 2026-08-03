@@ -86,10 +86,16 @@ else:
               WHERE participation_id IN ({",".join(map(str, cancel_ids))})
             """)
             print(f"Cancelled {len(cancel_ids)} registrations.")
+            # Capture just-cancelled rows so bronze sees the status change
+            df_cancelled_participation = spark.table(tbl("participation")).where(
+                F.col("participation_id").isin(cancel_ids)
+            ).where(F.col("status") == "cancelled")
         else:
             print("No cancellations applied today.")
+            df_cancelled_participation = None
     else:
         print("No competitions within 7 days to apply cancellations.")
+        df_cancelled_participation = None
 
 # COMMAND ----------
 
@@ -166,8 +172,14 @@ else:
               SET promoted_participation_id = {pid}
               WHERE waitlist_id = {wid}
             """)
+        # Capture just-promoted waitlist rows so bronze sees the status change
+        promoted_wl_ids = [x[0] for x in promote_updates]
+        df_promoted_waitlist = spark.table(tbl("competition_waitlist")).where(
+            F.col("waitlist_id").isin(promoted_wl_ids)
+        ).where(F.col("status") == "promoted")
     else:
         print("No waitlist promotions today.")
+        df_promoted_waitlist = None
 
 # COMMAND ----------
 
@@ -246,14 +258,17 @@ print(f"List lengths -> participation: {len(rows_part)} | waitlist: {len(rows_wa
 # Export participation and waitlist via the shared helper
 # (overwrite per run_date partition — idempotent).
 
-# --- Participation: combine promoted (Cell 6) with new registrations (Cell 7) ---
+# --- Participation: new registrations + promoted from waitlist + just-cancelled ---
+part_dfs = [df for df in [df_new_participation, df_promoted_participation, df_cancelled_participation] if df is not None]
 df_participation_combined = None
-if df_promoted_participation is not None and df_new_participation is not None:
-    df_participation_combined = df_promoted_participation.unionByName(df_new_participation)
-elif df_promoted_participation is not None:
-    df_participation_combined = df_promoted_participation
-elif df_new_participation is not None:
-    df_participation_combined = df_new_participation
+for df in part_dfs:
+    df_participation_combined = df if df_participation_combined is None else df_participation_combined.unionByName(df)
+
+# --- Waitlist: new entries + just-promoted (status change must reach bronze) ---
+wl_dfs = [df for df in [df_new_waitlist, df_promoted_waitlist] if df is not None]
+df_waitlist_combined = None
+for df in wl_dfs:
+    df_waitlist_combined = df if df_waitlist_combined is None else df_waitlist_combined.unionByName(df)
 
 export_to_landing("participation", df_participation_combined)
-export_to_landing("competition_waitlist", df_new_waitlist)
+export_to_landing("competition_waitlist", df_waitlist_combined)

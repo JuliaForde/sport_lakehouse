@@ -47,12 +47,25 @@ def membership_id(mid: int, start_date) -> int:
 # COMMAND ----------
 
 # 1) Expire memberships whose end_date < RUN_DATE
+# Capture IDs BEFORE the UPDATE — updated_at will be current_timestamp(), not RUN_DATE,
+# so filtering by updated_at after the fact breaks historical re-runs.
+_expire_condition = f"status = 'active' AND end_date < DATE('{RUN_DATE.isoformat()}')"
+_expiring_ids = [int(r["membership_id"]) for r in
+                 spark.table(tbl("memberships")).where(_expire_condition).select("membership_id").collect()]
+
 spark.sql(f"""
   UPDATE {tbl("memberships")}
   SET status = 'expired',
       updated_at = current_timestamp()
-  WHERE status = 'active' AND end_date < DATE('{RUN_DATE.isoformat()}')
+  WHERE {_expire_condition}
 """)
+
+# Read back the just-expired rows by ID — safe for both live runs and historical re-runs
+df_expired_memberships = None
+if _expiring_ids:
+    df_expired_memberships = spark.table(tbl("memberships")).where(
+        F.col("membership_id").isin(_expiring_ids)
+    )
 
 # COMMAND ----------
 
@@ -160,14 +173,10 @@ else:
 # COMMAND ----------
 
 # DBTITLE 1,Cell 8
-# Combine all memberships (new + renewals), then export via the shared helper
-# (overwrite per run_date partition — idempotent).
+# Combine: new + renewals + just-expired (status change must reach bronze)
+dfs = [df for df in [df_new_memberships, df_renew_memberships, df_expired_memberships] if df is not None]
 df_combined = None
-if df_new_memberships is not None and df_renew_memberships is not None:
-    df_combined = df_new_memberships.unionByName(df_renew_memberships)
-elif df_new_memberships is not None:
-    df_combined = df_new_memberships
-elif df_renew_memberships is not None:
-    df_combined = df_renew_memberships
+for df in dfs:
+    df_combined = df if df_combined is None else df_combined.unionByName(df)
 
 export_to_landing(TABLE, df_combined)

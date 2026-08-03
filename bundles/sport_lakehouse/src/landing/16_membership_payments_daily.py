@@ -96,6 +96,7 @@ for p in pending_rows:
     if rr.random() < 0.35:  # 35% of eligible pending settle per day
         settle.append(int(p["payment_id"]))
 
+df_settled_payments = None
 if settle:
     settle_list = ",".join(str(x) for x in settle)
     spark.sql(f"""
@@ -106,6 +107,10 @@ if settle:
       WHERE payment_id IN ({settle_list})
     """)
     print(f"Settled {len(settle)} pending invoices.")
+    # Capture just-settled rows so bronze sees the status change
+    df_settled_payments = spark.table(tbl("membership_payments")).where(
+        f"payment_id IN ({settle_list}) AND status = 'paid'"
+    )
 else:
     print("No pending invoices settled today.")
 
@@ -160,15 +165,10 @@ else:
 # COMMAND ----------
 
 # DBTITLE 1,Cell 8
-# Combine all payment transactions (new payments + retries), then export via the
-# shared helper (overwrite per run_date partition — idempotent).
-# Note: settled invoices (Cell 6) are UPDATE operations, not exported as new data.
+# Combine: new payments + retries + just-settled (status change must reach bronze)
+dfs = [df for df in [df_new_payments, df_retry_payments, df_settled_payments] if df is not None]
 df_combined = None
-if df_new_payments is not None and df_retry_payments is not None:
-    df_combined = df_new_payments.unionByName(df_retry_payments)
-elif df_new_payments is not None:
-    df_combined = df_new_payments
-elif df_retry_payments is not None:
-    df_combined = df_retry_payments
+for df in dfs:
+    df_combined = df if df_combined is None else df_combined.unionByName(df)
 
 export_to_landing(TABLE, df_combined)

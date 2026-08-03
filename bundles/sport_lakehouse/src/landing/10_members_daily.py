@@ -302,6 +302,62 @@ else:
 
 # COMMAND ----------
 
+# Simulate last name changes (marriage / divorce): ~15/day, peak age 28–40, range 20–55
+# Weight: 28–40 full rate, 20–27 35% of rate, 41–55 25% of rate
+_NAME_RATE_BASE = 0.00025 * VOLUME_MULT  # calibrated for ~15/day at medium volume
+
+# Load name pool if not already in scope (skipped when n_new == 0)
+if 'pool_by_country_gender' not in locals():
+    _np = spark.table(tbl("name_pool")).select("country","gender","first_name","last_name").collect()
+    pool_by_country_gender = {}
+    for _x in _np:
+        pool_by_country_gender.setdefault((_x["country"], _x["gender"]), []).append((_x["first_name"], _x["last_name"]))
+
+_mem_schema = spark.table(tbl("members")).schema
+
+marriage_candidates = (
+    spark.table(tbl("members"))
+    .where(F.col("member_id") <= F.lit(start_id))
+    .withColumn("_age", F.floor(F.datediff(F.lit(RUN_DATE), F.col("birth_date")) / F.lit(365.25)))
+    .where((F.col("_age") >= 20) & (F.col("_age") <= 55))
+    .withColumn("_threshold",
+        F.when((F.col("_age") >= 28) & (F.col("_age") <= 40), F.lit(_NAME_RATE_BASE))
+         .when(F.col("_age") < 28,                            F.lit(_NAME_RATE_BASE * 0.35))
+         .otherwise(                                           F.lit(_NAME_RATE_BASE * 0.25))
+    )
+    .withColumn("_u", F.rand(seed=SEED + 91))
+    .where(F.col("_u") < F.col("_threshold"))
+    .drop("_age", "_u", "_threshold")
+    .collect()
+)
+
+df_name_changes = None
+if marriage_candidates:
+    name_change_rows = []
+    for _row in marriage_candidates:
+        _mid = int(_row["member_id"])
+        _r   = random.Random(seed_for("name_change") + _mid + int(RUN_DATE.strftime("%Y%m%d")))
+        _gender = _row["gender"] if _row["gender"] in ("female", "male") else _r.choice(["female", "male"])
+        _nat    = _row["nationality"] or "Norway"
+        _pool   = pool_by_country_gender.get((_nat, _gender)) or pool_by_country_gender.get(("Norway", _gender))
+        _, _new_last = _r.choice(_pool)
+        if _new_last == _row["last_name"]:
+            continue
+        name_change_rows.append(tuple(
+            _new_last if f.name == "last_name" else _row[f.name]
+            for f in _mem_schema.fields
+        ))
+    if name_change_rows:
+        df_name_changes = spark.createDataFrame(name_change_rows, schema=_mem_schema)
+        merge_into(TABLE, df_name_changes, ["member_id"])
+        print(f"Name changes (marriage/divorce): {len(name_change_rows)}")
+    else:
+        print("No net name changes today (same name drawn).")
+else:
+    print("No name change candidates today.")
+
+# COMMAND ----------
+
 # Combine today's inserts and updates into one batch, then export via the
 # shared helper (overwrite per run_date partition — idempotent).
 dfs_to_export = []
@@ -309,6 +365,8 @@ if 'df_new' in locals() and n_new > 0:
     dfs_to_export.append(df_new)
 if 'df_moves_full' in locals() and df_moves_full.count() > 0:
     dfs_to_export.append(df_moves_full)
+if df_name_changes is not None:
+    dfs_to_export.append(df_name_changes)
 
 if not dfs_to_export:
     export_to_landing(TABLE, None)

@@ -183,6 +183,11 @@ else:
           WHERE end_date IS NULL AND member_id IN ({','.join([str(m) for m in chosen_list])})
         """)
 
+        # Capture just-closed affiliations so bronze sees the end_date change
+        df_closed_affiliations = spark.table(tbl("affiliations")).where(
+            F.col("member_id").isin(chosen_list)
+        ).where(F.col("end_date") == F.lit(RUN_DATE - timedelta(days=1)))
+
         # Insert new affiliations for transfers
         for x in elig_rows:
             mid = int(x["member_id"])
@@ -225,18 +230,16 @@ if rows_tr:
     display(df_tr.limit(20))
 else:
     print("No transfers to process.")
+    df_closed_affiliations = None
 
 # COMMAND ----------
 
 # DBTITLE 1,Cell 7
-# Combine all affiliations (new members + transfers), then export via the
-# shared helper (overwrite per run_date partition — idempotent).
+# Combine: new members + closed (transferred-out) + new transfer affiliations
+# Closed affiliations must reach bronze so silver SCD2 captures the end_date change.
+dfs = [df for df in [df_new_affiliations, df_closed_affiliations, df_tr_affiliations] if df is not None]
 df_combined = None
-if df_new_affiliations is not None and df_tr_affiliations is not None:
-    df_combined = df_new_affiliations.unionByName(df_tr_affiliations)
-elif df_new_affiliations is not None:
-    df_combined = df_new_affiliations
-elif df_tr_affiliations is not None:
-    df_combined = df_tr_affiliations
+for df in dfs:
+    df_combined = df if df_combined is None else df_combined.unionByName(df)
 
 export_to_landing(TABLE, df_combined)
