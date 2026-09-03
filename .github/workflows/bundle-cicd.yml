@@ -1,8 +1,10 @@
 name: Databricks Bundle CI/CD
 
 # Triggers:
+# - Push to feature/**, fix/**, chore/** → validate + deploy to knowit_dev_julia
 # - Pull request to main → validate only
-# - Push to main (PR merged) → deploy to live
+# - Push to main (PR merged) → deploy to knowit_dev (shared dev)
+# - Manual trigger → deploy to knowit_live
 
 on:
   pull_request:
@@ -10,8 +12,19 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
+      - 'fix/**'
+      - 'chore/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target'
+        required: true
+        default: 'knowit_live'
+        type: choice
+        options:
+          - knowit_live
 
-# Prevent concurrent deploys on the same branch
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -23,36 +36,68 @@ jobs:
     name: Validate bundle (PR)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    defaults:
-      run:
-        working-directory: bundles/sport_lakehouse
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
       - name: Validate bundle
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_HOST: https://dbc-ef88803f-e606.cloud.databricks.com
-        run: databricks bundle validate --target live
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle validate --target knowit_dev_julia
 
-  # ── Push to main: deploy to live ──────────────────────────────────────────────
-  deploy-live:
-    name: Deploy to live
+  # ── Push to feature/fix/chore: validate + deploy to personal sandbox ──────────
+  deploy-personal:
+    name: Deploy to knowit_dev_julia
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/feature/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/'))
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate bundle
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle validate --target knowit_dev_julia
+      - name: Deploy to knowit_dev_julia
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle deploy --target knowit_dev_julia
+
+  # ── Push to main: deploy to shared dev ───────────────────────────────────────
+  deploy-dev:
+    name: Deploy to knowit_dev
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    defaults:
-      run:
-        working-directory: bundles/sport_lakehouse
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
       - name: Validate bundle
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_HOST: https://dbc-ef88803f-e606.cloud.databricks.com
-        run: databricks bundle validate --target live
-      - name: Deploy to live
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle validate --target knowit_dev
+      - name: Deploy to knowit_dev
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_HOST: https://dbc-ef88803f-e606.cloud.databricks.com
-        run: databricks bundle deploy --target live
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle deploy --target knowit_dev
+
+  # ── Manual: deploy to knowit_live ────────────────────────────────────────────
+  deploy-live:
+    name: Deploy to knowit_live
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate bundle
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle validate --target knowit_live
+      - name: Deploy to knowit_live
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        run: databricks bundle deploy --target knowit_live

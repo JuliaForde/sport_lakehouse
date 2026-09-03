@@ -41,6 +41,15 @@ targets:
       profile: knowit-sandbox
       root_path: /Workspace/Users/julia.forde@knowit.no/${bundle.name}/${bundle.target}
 
+  knowit_dev:
+    mode: production
+    variables:
+      catalog: sport_lakehouse
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+      profile: knowit-sandbox
+      root_path: /Workspace/Dev/${bundle.name}
+
   knowit_live:
     mode: production
     variables:
