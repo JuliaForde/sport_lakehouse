@@ -38,7 +38,7 @@ targets:
       catalog: dev_julia
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
-      profile: knowit-sandbox
+
       root_path: /Workspace/Users/julia.forde@knowit.no/${bundle.name}/${bundle.target}
 
   knowit_dev:
@@ -47,7 +47,7 @@ targets:
       catalog: sport_lakehouse
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
-      profile: knowit-sandbox
+
       root_path: /Workspace/Dev/${bundle.name}
 
   knowit_live:
@@ -56,5 +56,5 @@ targets:
       catalog: sport_lakehouse
     workspace:
       host: https://dbc-8c27291b-31c5.cloud.databricks.com
-      profile: knowit-sandbox
+
       root_path: /Workspace/Shared/${bundle.name}/${bundle.target}
