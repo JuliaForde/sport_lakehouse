@@ -43,6 +43,7 @@ jobs:
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle validate --target knowit_dev_julia
 
   # ── Push to feature/fix/chore: validate + deploy to personal sandbox ──────────
@@ -57,11 +58,13 @@ jobs:
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle validate --target knowit_dev_julia
       - name: Deploy to knowit_dev_julia
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle deploy --target knowit_dev_julia
 
   # ── Push to main: deploy to shared dev ───────────────────────────────────────
@@ -76,11 +79,13 @@ jobs:
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle validate --target knowit_dev
       - name: Deploy to knowit_dev
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle deploy --target knowit_dev
 
   # ── Manual: deploy to knowit_live ────────────────────────────────────────────
@@ -95,9 +100,11 @@ jobs:
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle validate --target knowit_live
       - name: Deploy to knowit_live
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_HOST: https://dbc-8c27291b-31c5.cloud.databricks.com
+        working-directory: bundles/sport_lakehouse
         run: databricks bundle deploy --target knowit_live
