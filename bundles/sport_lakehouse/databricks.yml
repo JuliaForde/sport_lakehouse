@@ -1,5 +1,5 @@
 bundle:
-  name: lakehouse_free_edition
+  name: sport_lakehouse
 
 variables:
   catalog:
@@ -10,6 +10,8 @@ include:
   - resources/**/*.yml
 
 targets:
+
+  # --- Free edition (personal) ---
 
   dev_julia:
     mode: development
@@ -27,3 +29,23 @@ targets:
     workspace:
       host: https://dbc-ef88803f-e606.cloud.databricks.com
       root_path: /Workspace/Shared/Databricks_FreeEdition/${bundle.name}/${bundle.target}
+
+  # --- Knowit sandbox (company) ---
+
+  knowit_dev_julia:
+    mode: development
+    variables:
+      catalog: dev_julia
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+      profile: knowit-sandbox
+      root_path: /Workspace/Users/julia.forde@knowit.no/${bundle.name}/${bundle.target}
+
+  knowit_live:
+    mode: production
+    variables:
+      catalog: sport_lakehouse
+    workspace:
+      host: https://dbc-8c27291b-31c5.cloud.databricks.com
+      profile: knowit-sandbox
+      root_path: /Workspace/Shared/${bundle.name}/${bundle.target}
