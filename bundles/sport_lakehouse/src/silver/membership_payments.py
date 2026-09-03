@@ -1,5 +1,5 @@
 from pyspark import pipelines as dp
-from utils import prepare_for_cdc, deduplicate
+from utils import prepare_for_cdc, deduplicate, DEFAULT_HISTORY_EXCLUSIONS
 from configs import MEMBERSHIP_PAYMENTS as CONFIG
 
 CATALOG = spark.conf.get("catalog")
@@ -22,4 +22,5 @@ dp.create_auto_cdc_flow(
     keys=["MEPA_Rk"],
     sequence_by="_ingest_ts",
     stored_as_scd_type=2,
+    track_history_except_column_list=DEFAULT_HISTORY_EXCLUSIONS + ["MEPA_Rk"],
 )
