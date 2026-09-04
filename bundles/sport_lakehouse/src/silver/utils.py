@@ -3,7 +3,7 @@ from pyspark.sql.types import StringType
 
 BRONZE_TECHNICAL_COLS = {"_ingest_ts", "_ingest_date", "_source_file"}
 
-DEFAULT_HISTORY_EXCLUSIONS = ["_ingest_ts", "_ingest_date", "_source_file"]
+DEFAULT_HISTORY_EXCLUSIONS = []
 
 
 def compute_rk(business_key_cols: list) -> F.Column:
