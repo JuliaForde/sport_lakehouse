@@ -70,7 +70,10 @@ def addresses():
 @dp.table(name="members", comment="Bronze: sport club members. PK: member_id.")
 @dp.expect("member_id not null", "member_id IS NOT NULL")
 def members():
-    return dedup_by_bk(add_ingest_cols(read_landing("members")), ["member_id"])
+    # Dedup by (member_id, _ingest_date) to keep one row per member per day.
+    # Key-only dedup would drop same-day re-exports but also eat cross-day updates
+    # (name changes, address moves), breaking SCD2 in silver.
+    return dedup_by_bk(add_ingest_cols(read_landing("members")), ["member_id", "_ingest_date"])
 
 
 @dp.table(name="clubs", comment="Bronze: sport clubs. PK: club_id.")
@@ -95,19 +98,19 @@ def club_sports():
 @dp.table(name="affiliations", comment="Bronze: member-club affiliations. PK: affiliation_id.")
 @dp.expect("affiliation_id not null", "affiliation_id IS NOT NULL")
 def affiliations():
-    return dedup_by_bk(add_ingest_cols(read_landing("affiliations")), ["affiliation_id"])
+    return dedup_by_bk(add_ingest_cols(read_landing("affiliations")), ["affiliation_id", "_ingest_date"])
 
 
 @dp.table(name="memberships", comment="Bronze: membership subscriptions. PK: membership_id.")
 @dp.expect("membership_id not null", "membership_id IS NOT NULL")
 def memberships():
-    return dedup_by_bk(add_ingest_cols(read_landing("memberships")), ["membership_id"])
+    return dedup_by_bk(add_ingest_cols(read_landing("memberships")), ["membership_id", "_ingest_date"])
 
 
 @dp.table(name="membership_payments", comment="Bronze: membership payments. PK: payment_id.")
 @dp.expect("payment_id not null", "payment_id IS NOT NULL")
 def membership_payments():
-    return dedup_by_bk(add_ingest_cols(read_landing("membership_payments")), ["payment_id"])
+    return dedup_by_bk(add_ingest_cols(read_landing("membership_payments")), ["payment_id", "_ingest_date"])
 
 
 @dp.table(name="competitions", comment="Bronze: sport competitions. PK: competition_id.")
@@ -119,13 +122,13 @@ def competitions():
 @dp.table(name="competition_waitlist", comment="Bronze: competition waitlist. PK: waitlist_id.")
 @dp.expect("waitlist_id not null", "waitlist_id IS NOT NULL")
 def competition_waitlist():
-    return dedup_by_bk(add_ingest_cols(read_landing("competition_waitlist")), ["waitlist_id"])
+    return dedup_by_bk(add_ingest_cols(read_landing("competition_waitlist")), ["waitlist_id", "_ingest_date"])
 
 
 @dp.table(name="participation", comment="Bronze: competition participation. PK: participation_id.")
 @dp.expect("participation_id not null", "participation_id IS NOT NULL")
 def participation():
-    return dedup_by_bk(add_ingest_cols(read_landing("participation")), ["participation_id"])
+    return dedup_by_bk(add_ingest_cols(read_landing("participation")), ["participation_id", "_ingest_date"])
 
 
 @dp.table(name="results", comment="Bronze: competition results. PK: result_id.")
